@@ -1,0 +1,78 @@
+[[package]]
+name = "ethtool"
+version = "0.15"
+description = "Python module to interface with ethtool"
+category = "main"
+optional = false
+python-versions = "*"
+
+[[package]]
+name = "lnst"
+version = "16.1.0"
+description = "Linux Network Stack Test"
+category = "main"
+optional = false
+python-versions = "^3.9"
+develop = false
+
+[package.dependencies]
+ethtool = "*"
+lxml = "*"
+pyroute2 = "*"
+
+[package.extras]
+virt = ["libvirt-python"]
+containers = ["podman"]
+sec_socket = ["cryptography"]
+trex = ["pyyaml"]
+
+[package.source]
+type = "git"
+url = "https://github.com/LNST-project/lnst"
+reference = "master"
+resolved_reference = "f3ee104f9396ac4fd3771e2fdc913643113faecd"
+
+[[package]]
+name = "lxml"
+version = "4.9.1"
+description = "Powerful and Pythonic XML processing library combining libxml2/libxslt with the ElementTree API."
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, != 3.4.*"
+
+[package.extras]
+cssselect = ["cssselect (>=0.7)"]
+html5 = ["html5lib"]
+htmlsoup = ["beautifulsoup4"]
+source = ["Cython (>=0.29.7)"]
+
+[[package]]
+name = "pyroute2"
+version = "0.7.3"
+description = "Python Netlink library"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+win-inet-pton = {version = "*", markers = "platform_system == \"Windows\""}
+
+[[package]]
+name = "win-inet-pton"
+version = "1.1.0"
+description = "Native inet_pton and inet_ntop implementation for Python on Windows (with ctypes)."
+category = "main"
+optional = false
+python-versions = "*"
+
+[metadata]
+lock-version = "1.1"
+python-versions = "^3.9"
+content-hash = "630906b78988cc3883bc22872bddb30d010b9c6b47545339ec73e4d40f4a8cc9"
+
+[metadata.files]
+ethtool = []
+lnst = []
+lxml = []
+pyroute2 = []
+win-inet-pton = []
