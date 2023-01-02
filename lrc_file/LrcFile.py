@@ -53,14 +53,6 @@ def _get_cpu_hostid(result: BaseResult) -> str:
     raise Exception("could not find hostid in CPU measurement result!")
 
 
-def _generate_metric_name(result: BaseResult, base_name: str) -> str:
-    if _is_cpu_measurement_result(result):
-        hostid = _get_cpu_hostid(result)
-        return f"{hostid}_{base_name}"
-    else:
-        return base_name
-
-
 def _get_flow_metrics(lnst_run: RecipeRun, evaluated_flow_metrics: list[str]) -> dict[str, float]:
     return {
         f"{i}_{key}": value.average
