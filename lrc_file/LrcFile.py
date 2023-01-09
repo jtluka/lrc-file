@@ -44,23 +44,6 @@ def _is_cpu_measurement_result(result: BaseResult) -> bool:
         return False
 
 
-def _get_cpu_hostid(result: BaseResult) -> str:
-    regex = re.compile("CPU Utilization on host (.*):")
-    for line in result.description.split("\n"):
-        if m := regex.match(line):
-            return m.group(1)
-
-    raise Exception("could not find hostid in CPU measurement result!")
-
-
-def _generate_metric_name(result: BaseResult, base_name: str) -> str:
-    if _is_cpu_measurement_result(result):
-        hostid = _get_cpu_hostid(result)
-        return f"{hostid}_{base_name}"
-    else:
-        return base_name
-
-
 def _get_flow_metrics(lnst_run: RecipeRun, evaluated_flow_metrics: list[str]) -> dict[str, float]:
     return {
         f"{i}_{key}": value.average
@@ -73,7 +56,7 @@ def _get_flow_metrics(lnst_run: RecipeRun, evaluated_flow_metrics: list[str]) ->
 
 def _get_cpu_metrics(lnst_run: RecipeRun, evaluated_cpu_metrics: list[str]) -> dict[str, float]:
     return {
-        f"{i}_{_get_cpu_hostid(result)}": value.average
+        f"{i}_utilization": value.average
         for i, result in enumerate(lnst_run.results)
         if _is_cpu_measurement_result(result)
         for key, value in result.data.items()
