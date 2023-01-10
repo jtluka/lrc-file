@@ -12,9 +12,12 @@ compare-data-files = "scripts.compare_data_files:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-lnst = {git = "https://github.com/LNST-project/lnst"}
+lnst = {git = "https://github.com/LNST-project/lnst", branch = "master"}
 
-[tool.poetry.dev-dependencies]
+[tool.poetry.group.dev]
+optional = true
+
+[tool.poetry.group.dev.dependencies]
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
