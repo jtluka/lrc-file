@@ -8,7 +8,7 @@ packages = [
 ]
 
 [tool.poetry.scripts]
-compare-data-files = "scripts.compare_data_files:main"
+compare-data-files = "lrc_file.scripts.compare_data_files:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
