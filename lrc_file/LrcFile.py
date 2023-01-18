@@ -2,12 +2,14 @@ from dataclasses import dataclass, field
 from typing import Optional
 import functools
 import itertools
-import re
 
 from lnst.Common import Parameters
 from lnst.Controller.Recipe import RecipeRun, import_recipe_run
-from lnst.Controller.RecipeResults import BaseResult, Result
+from lnst.Controller.RecipeResults import BaseResult
 from lnst.RecipeCommon.Perf.Results import PerfResult
+from lnst.RecipeCommon.Perf.Measurements.Results.FlowMeasurementResults import FlowMeasurementResults
+from lnst.RecipeCommon.Perf.Measurements.Results.CPUMeasurementResults import CPUMeasurementResults
+from lnst.RecipeCommon.Perf.Evaluators.BaselineEvaluator import BaselineEvaluationResult
 
 
 @dataclass(frozen=True)
@@ -193,6 +195,39 @@ class LrcFile:
         return self._cpu_metrics
 
     @property
+    def evaluation_results(self):
+        return [
+            result
+            for result in self._data.results
+            if isinstance(result, BaselineEvaluationResult)
+        ]
+
+    def _evaluation_data(self, result_type: type):
+        """
+        Returns dict of `result_type` metrics evaluated by BaselineEvaluator
+        """
+        evaluation_data = {}
+
+        for result in self.evaluation_results:
+            for comparison in result.data["comparisons"]:
+                if not isinstance(comparison["current_result"], result_type):
+                    continue
+
+                evaluated_metric = comparison["metric_name"]
+                evaluated_metric_name = evaluated_metric[4:]
+
+                evaluation_data[evaluated_metric] = getattr(comparison["current_result"], evaluated_metric_name).average
+
+        return evaluation_data
+
+    @property
+    def cpu_evaluation_data(self) -> dict[str, float]:
+        """
+            Returns CPU metrics with its values used during evaluation.
+        """
+        return self._evaluation_data(CPUMeasurementResults)
+
+    @property
     def flow_result_data(self) -> dict[str, float]:
         """
         Returns a dictionary containing average of following measurements:
@@ -202,6 +237,13 @@ class LrcFile:
             receiver_flow_data
         """
         return self._flow_metrics
+
+    @property
+    def flow_evaluation_data(self) -> dict[str, float]:
+        """
+            Returns flow metrics with its values used during evaluation.
+        """
+        return self._evaluation_data(FlowMeasurementResults)
 
     @property
     def recipe_params(self) -> Parameters:
@@ -234,6 +276,10 @@ class LrcFile:
     @property
     def metrics(self) -> dict[str, float]:
         return {**self._flow_metrics, **self._cpu_metrics}
+
+    @property
+    def evaluation_metrics(self) -> dict[str, float]:
+        return {**self.cpu_evaluation_data, **self.flow_evaluation_data}
 
     def get_raw_cpu_data(self) -> list[Run]:
         return self._cpu_data

@@ -107,9 +107,21 @@ class LrcSet:
         return self._metrics("metrics")
 
     @property
+    def evaluation_metrics(self) -> dict[str, list[float]]:
+        return self._metrics("evaluation_metrics")
+
+    @property
     def cpu_metrics(self) -> dict[str, list[float]]:
         return self._metrics("cpu_result_data")
 
     @property
+    def cpu_evaluation_metrics(self) -> dict[str, list[float]]:
+        return self._metrics("cpu_evaluation_data")
+
+    @property
     def flow_metrics(self) -> dict[str, list[float]]:
         return self._metrics("flow_result_data")
+
+    @property
+    def flow_evaluation_metrics(self) -> dict[str, list[float]]:
+        return self._metrics("flow_evaluation_data")
