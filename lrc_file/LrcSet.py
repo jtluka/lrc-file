@@ -93,32 +93,23 @@ class LrcSet:
 
         return self._filtered_data_files
 
-    @property
-    def metrics(self) -> dict[str, list[float]]:
+    def _metrics(self, metrics_type: str):
         ret_metrics: dict[str, list[float]] = {}
         for data_file in self.data_files:
-            for metric_name, metric in data_file.metrics.items():
+            for metric_name, metric in getattr(data_file, metrics_type).items():
                 ret_metric = ret_metrics.get(metric_name, [])
                 ret_metric.append(metric)
                 ret_metrics[metric_name] = ret_metric
         return ret_metrics
+
+    @property
+    def metrics(self) -> dict[str, list[float]]:
+        return self._metrics("metrics")
 
     @property
     def cpu_metrics(self) -> dict[str, list[float]]:
-        ret_metrics: dict[str, list[float]] = {}
-        for file in self.data_files:
-            for metric_name, metric in file.cpu_result_data.items():
-                ret_metric = ret_metrics.get(metric_name, [])
-                ret_metric.append(metric)
-                ret_metrics[metric_name] = ret_metric
-        return ret_metrics
+        return self._metrics("cpu_result_data")
 
     @property
     def flow_metrics(self) -> dict[str, list[float]]:
-        ret_metrics: dict[str, list[float]] = {}
-        for file in self.data_files:
-            for metric_name, metric in file.flow_result_data.items():
-                ret_metric = ret_metrics.get(metric_name, [])
-                ret_metric.append(metric)
-                ret_metrics[metric_name] = ret_metric
-        return ret_metrics
+        return self._metrics("flow_result_data")
