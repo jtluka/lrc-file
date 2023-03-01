@@ -169,6 +169,7 @@ class LrcFile:
         self._flow_metrics = _get_flow_metrics(recipe_run, evaluated_flow_metrics)
         self._cpu_metrics = _get_cpu_metrics(recipe_run, evaluated_cpu_metrics)
 
+        self._data = recipe_run
         self._cpu_data = _get_cpu_data(recipe_run)
         self._flow_data = _get_flow_data(recipe_run)
 
@@ -178,9 +179,11 @@ class LrcFile:
         self._environ = recipe_run.environ
 
         if delete_loaded_data:
+            # to reduce the memory foot print of the LrcFile, initialize
+            # the following cached properties from the data, and discard
+            # the data afterwards
+            _, _ = self.cpu_evaluation_data, self.flow_evaluation_data
             self._data = None
-        else:
-            self._data = recipe_run
 
     @property
     def data(self) -> Optional[RecipeRun]:
@@ -220,7 +223,7 @@ class LrcFile:
 
         return evaluation_data
 
-    @property
+    @functools.cached_property
     def cpu_evaluation_data(self) -> dict[str, float]:
         """
             Returns CPU metrics with its values used during evaluation.
@@ -238,7 +241,7 @@ class LrcFile:
         """
         return self._flow_metrics
 
-    @property
+    @functools.cached_property
     def flow_evaluation_data(self) -> dict[str, float]:
         """
             Returns flow metrics with its values used during evaluation.
