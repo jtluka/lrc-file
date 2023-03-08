@@ -9,7 +9,9 @@ from lnst.Controller.RecipeResults import BaseResult
 from lnst.RecipeCommon.Perf.Results import PerfResult
 from lnst.RecipeCommon.Perf.Measurements.Results.FlowMeasurementResults import FlowMeasurementResults
 from lnst.RecipeCommon.Perf.Measurements.Results.CPUMeasurementResults import CPUMeasurementResults
+from lnst.RecipeCommon.Perf.Measurements.Results.TcRunMeasurementResults import TcRunMeasurementResults
 from lnst.RecipeCommon.Perf.Evaluators.BaselineEvaluator import BaselineEvaluationResult
+from lnst.Recipes.ENRT import TrafficControlRecipe
 
 
 @dataclass(frozen=True)
@@ -46,6 +48,13 @@ def _is_cpu_measurement_result(result: BaseResult) -> bool:
         return False
 
 
+def _is_tc_measurement_result(result: BaseResult) -> bool:
+    try:
+        return "rule_install_rate" in result.data
+    except TypeError:
+        return False
+
+
 def _get_flow_metrics(lnst_run: RecipeRun, evaluated_flow_metrics: list[str]) -> dict[str, float]:
     return {
         f"{i}_{key}": value.average
@@ -66,7 +75,20 @@ def _get_cpu_metrics(lnst_run: RecipeRun, evaluated_cpu_metrics: list[str]) -> d
     }
 
 
+def _get_tc_metrics(lnst_run: RecipeRun, evaluated_tc_metrics: list[str]) -> dict[str, float]:
+    return {
+        f"{i}_{key}": value
+        for i, result in enumerate(lnst_run.results)
+        if _is_tc_measurement_result(result)
+        for key, value in result.data.items()
+        if key in evaluated_tc_metrics
+    }
+
+
 def _get_cpu_data(lnst_run: RecipeRun) -> list[Run]:
+    if isinstance(lnst_run.recipe, TrafficControlRecipe):
+        return []
+
     try:
         m1_results, m2_results = filter(_is_cpu_measurement_result, lnst_run.results)
     except ValueError:
@@ -142,6 +164,18 @@ def _get_flow_data(lnst_run: RecipeRun) -> list[_Flow]:
     return flows
 
 
+def _get_tc_data(lnst_run: RecipeRun) -> list[Series]:
+    tc_runs: list[Series] = []
+    tc_results = filter(_is_tc_measurement_result, lnst_run.results)
+    for run_no, run_results in enumerate(tc_results):
+        series = Series(
+            label=f"iteration{run_no}",
+            data=[run_results.data["rule_install_rate"]],
+        )
+        tc_runs.append(series)
+    return tc_runs
+
+
 class LrcFile:
     """
     LrcFile represents a file that has been exported from an LNST run
@@ -159,6 +193,7 @@ class LrcFile:
             "receiver_cpu_data",
         ],
         evaluated_cpu_metrics: list[str] = ["cpu"],
+        evaluated_tc_metrics: list[str] = ["rule_install_rate"],
         delete_loaded_data: bool = True,
     ):
         self.filename = filename
@@ -168,10 +203,12 @@ class LrcFile:
         # the relevant parts of it
         self._flow_metrics = _get_flow_metrics(recipe_run, evaluated_flow_metrics)
         self._cpu_metrics = _get_cpu_metrics(recipe_run, evaluated_cpu_metrics)
+        self._tc_metrics = _get_tc_metrics(recipe_run, evaluated_tc_metrics)
 
         self._data = recipe_run
         self._cpu_data = _get_cpu_data(recipe_run)
         self._flow_data = _get_flow_data(recipe_run)
+        self._tc_data = _get_tc_data(recipe_run)
 
         self._recipe_params = recipe_run.recipe.params
         self._recipe_name = recipe_run.recipe.__class__.__name__
@@ -183,6 +220,7 @@ class LrcFile:
             # the following cached properties from the data, and discard
             # the data afterwards
             _, _ = self.cpu_evaluation_data, self.flow_evaluation_data
+            _ = self.tc_evaluation_data
             self._data = None
 
     @property
@@ -218,7 +256,6 @@ class LrcFile:
 
                 evaluated_metric = comparison["metric_name"]
                 evaluated_metric_name = evaluated_metric[4:]
-
                 evaluation_data[evaluated_metric] = getattr(comparison["current_result"], evaluated_metric_name).average
 
         return evaluation_data
@@ -247,6 +284,14 @@ class LrcFile:
             Returns flow metrics with its values used during evaluation.
         """
         return self._evaluation_data(FlowMeasurementResults)
+
+    @property
+    def tc_results_data(self) -> dict[str, float]:
+        return self._tc_metrics
+
+    @functools.cached_property
+    def tc_evaluation_data(self) -> dict[str, float]:
+        return self._evaluation_data(TcRunMeasurementResults)
 
     @property
     def recipe_params(self) -> Parameters:
@@ -278,11 +323,11 @@ class LrcFile:
 
     @property
     def metrics(self) -> dict[str, float]:
-        return {**self._flow_metrics, **self._cpu_metrics}
+        return {**self._flow_metrics, **self._cpu_metrics, **self._tc_metrics}
 
     @property
     def evaluation_metrics(self) -> dict[str, float]:
-        return {**self.cpu_evaluation_data, **self.flow_evaluation_data}
+        return {**self.cpu_evaluation_data, **self.flow_evaluation_data, **self.tc_evaluation_data}
 
     def get_raw_cpu_data(self) -> list[Run]:
         return self._cpu_data

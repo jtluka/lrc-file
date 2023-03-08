@@ -125,3 +125,12 @@ class LrcSet:
     @property
     def flow_evaluation_metrics(self) -> dict[str, list[float]]:
         return self._metrics("flow_evaluation_data")
+
+    @property
+    def tc_metrics(self) -> dict[str, list[float]]:
+        return self._metrics("tc_results_data")
+
+    @property
+    def tc_evaluation_metrics(self) -> dict[str, list[float]]:
+        return self._metrics("tc_evaluation_data")
+
