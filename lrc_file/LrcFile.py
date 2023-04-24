@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 import functools
 import itertools
+import re
 
 from lnst.Common import Parameters
 from lnst.Controller.Recipe import RecipeRun, import_recipe_run
@@ -255,7 +256,7 @@ class LrcFile:
                     continue
 
                 evaluated_metric = comparison["metric_name"]
-                evaluated_metric_name = evaluated_metric[4:]
+                evaluated_metric_name = re.sub("^[0-9]+_", "", evaluated_metric)
                 evaluation_data[evaluated_metric] = getattr(comparison["current_result"], evaluated_metric_name).average
 
         return evaluation_data
