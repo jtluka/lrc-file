@@ -220,9 +220,12 @@ class LrcFile:
             # to reduce the memory foot print of the LrcFile, initialize
             # the following cached properties from the data, and discard
             # the data afterwards
-            _, _ = self.cpu_evaluation_data, self.flow_evaluation_data
-            _ = self.tc_evaluation_data
-            self._data = None
+            self._delete_loaded_data()
+
+    def _delete_loaded_data(self) -> None:
+        _, _ = self.cpu_evaluation_data, self.flow_evaluation_data
+        _ = self.tc_evaluation_data
+        self._data = None
 
     @property
     def data(self) -> Optional[RecipeRun]:
