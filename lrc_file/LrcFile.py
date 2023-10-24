@@ -8,9 +8,12 @@ from lnst.Common import Parameters
 from lnst.Controller.Recipe import RecipeRun, import_recipe_run
 from lnst.Controller.RecipeResults import BaseResult
 from lnst.RecipeCommon.Perf.Results import PerfResult
-from lnst.RecipeCommon.Perf.Measurements.Results.FlowMeasurementResults import FlowMeasurementResults
-from lnst.RecipeCommon.Perf.Measurements.Results.CPUMeasurementResults import CPUMeasurementResults
-from lnst.RecipeCommon.Perf.Measurements.Results.TcRunMeasurementResults import TcRunMeasurementResults
+from lnst.RecipeCommon.Perf.Measurements.Results import (
+    FlowMeasurementResults,
+    CPUMeasurementResults,
+    TcRunMeasurementResults,
+    RDMABandwidthMeasurementResults,
+)
 from lnst.RecipeCommon.Perf.Evaluators.BaselineEvaluator import BaselineEvaluationResult
 from lnst.Recipes.ENRT import TrafficControlRecipe
 
@@ -56,7 +59,16 @@ def _is_tc_measurement_result(result: BaseResult) -> bool:
         return False
 
 
-def _get_flow_metrics(lnst_run: RecipeRun, evaluated_flow_metrics: list[str]) -> dict[str, float]:
+def _is_rdma_measurement_result(result: BaseResult) -> bool:
+    try:
+        return "bandwidth" in result.data
+    except TypeError:
+        return False
+
+
+def _get_flow_metrics(
+    lnst_run: RecipeRun, evaluated_flow_metrics: list[str]
+) -> dict[str, float]:
     return {
         f"{i}_{key}": value.average
         for i, result in enumerate(lnst_run.results)
@@ -66,7 +78,9 @@ def _get_flow_metrics(lnst_run: RecipeRun, evaluated_flow_metrics: list[str]) ->
     }
 
 
-def _get_cpu_metrics(lnst_run: RecipeRun, evaluated_cpu_metrics: list[str]) -> dict[str, float]:
+def _get_cpu_metrics(
+    lnst_run: RecipeRun, evaluated_cpu_metrics: list[str]
+) -> dict[str, float]:
     return {
         f"{i}_utilization": value.average
         for i, result in enumerate(lnst_run.results)
@@ -76,13 +90,27 @@ def _get_cpu_metrics(lnst_run: RecipeRun, evaluated_cpu_metrics: list[str]) -> d
     }
 
 
-def _get_tc_metrics(lnst_run: RecipeRun, evaluated_tc_metrics: list[str]) -> dict[str, float]:
+def _get_tc_metrics(
+    lnst_run: RecipeRun, evaluated_tc_metrics: list[str]
+) -> dict[str, float]:
     return {
         f"{i}_{key}": value
         for i, result in enumerate(lnst_run.results)
         if _is_tc_measurement_result(result)
         for key, value in result.data.items()
         if key in evaluated_tc_metrics
+    }
+
+
+def _get_rdma_metrics(
+    lnst_run: RecipeRun, evaluated_rdma_metrics: list[str]
+) -> dict[str, float]:
+    return {
+        f"{i}_{key}": value
+        for i, result in enumerate(lnst_run.results)
+        if _is_rdma_measurement_result(result)
+        for key, value in result.data.items()
+        if key in evaluated_rdma_metrics
     }
 
 
@@ -110,7 +138,10 @@ def _get_cpu_data(lnst_run: RecipeRun) -> list[Run]:
 
                 # sum across all measurements for each second
                 aggregated_cpu_data: list[float] = [
-                    sum(measurement[interval].average for measurement in cpu_data[run_index])
+                    sum(
+                        measurement[interval].average
+                        for measurement in cpu_data[run_index]
+                    )
                     for interval in range(number_of_intervals)
                 ]
 
@@ -123,7 +154,9 @@ def _get_cpu_data(lnst_run: RecipeRun) -> list[Run]:
 def _get_flow_data(lnst_run: RecipeRun) -> list[_Flow]:
     """Partially process flow data"""
 
-    def aggregate_flows(aggregated: list[float], perf_results: list[PerfResult]) -> list[float]:
+    def aggregate_flows(
+        aggregated: list[float], perf_results: list[PerfResult]
+    ) -> list[float]:
         """aggregate each element from `perf_results` into `aggregated`"""
 
         if not aggregated:
@@ -145,11 +178,15 @@ def _get_flow_data(lnst_run: RecipeRun) -> list[_Flow]:
         # aggregated flows have the data a level deeper
         if is_aggregated:
             generator_data = [
-                functools.reduce(aggregate_flows, itertools.chain.from_iterable(run_data), [])
+                functools.reduce(
+                    aggregate_flows, itertools.chain.from_iterable(run_data), []
+                )
                 for run_data in flow_result.data["generator_flow_data"]
             ]
             receiver_data = [
-                functools.reduce(aggregate_flows, itertools.chain.from_iterable(run_data), [])
+                functools.reduce(
+                    aggregate_flows, itertools.chain.from_iterable(run_data), []
+                )
                 for run_data in flow_result.data["receiver_flow_data"]
             ]
         else:
@@ -177,11 +214,24 @@ def _get_tc_data(lnst_run: RecipeRun) -> list[Series]:
     return tc_runs
 
 
+def _get_rdma_data(lnst_run: RecipeRun) -> list[Series]:
+    rdma_runs: list[Series] = []
+    rdma_results = filter(_is_rdma_measurement_result, lnst_run.results)
+    for run_no, run_results in enumerate(rdma_results):
+        series = Series(
+            label=f"iteration{run_no}",
+            data=[run_results.data["bandwidth"]],
+        )
+        rdma_runs.append(series)
+    return rdma_runs
+
+
 class LrcFile:
     """
     LrcFile represents a file that has been exported from an LNST run
     using Recipe.export_recipe_run()
     """
+
     filename: str
 
     def __init__(
@@ -195,6 +245,7 @@ class LrcFile:
         ],
         evaluated_cpu_metrics: list[str] = ["cpu"],
         evaluated_tc_metrics: list[str] = ["rule_install_rate"],
+        evaluated_rdma_metrics: list[str] = ["bandwidth"],
         delete_loaded_data: bool = True,
     ):
         self.filename = filename
@@ -205,11 +256,13 @@ class LrcFile:
         self._flow_metrics = _get_flow_metrics(recipe_run, evaluated_flow_metrics)
         self._cpu_metrics = _get_cpu_metrics(recipe_run, evaluated_cpu_metrics)
         self._tc_metrics = _get_tc_metrics(recipe_run, evaluated_tc_metrics)
+        self._rdma_metrics = _get_rdma_metrics(recipe_run, evaluated_rdma_metrics)
 
         self._data = recipe_run
         self._cpu_data = _get_cpu_data(recipe_run)
         self._flow_data = _get_flow_data(recipe_run)
         self._tc_data = _get_tc_data(recipe_run)
+        self._rdma_data = _get_rdma_data(recipe_run)
 
         self._recipe_params = recipe_run.recipe.params
         self._recipe_name = recipe_run.recipe.__class__.__name__
@@ -225,6 +278,7 @@ class LrcFile:
     def _delete_loaded_data(self) -> None:
         _, _ = self.cpu_evaluation_data, self.flow_evaluation_data
         _ = self.tc_evaluation_data
+        _ = self.rdma_evaluation_data
         self._data = None
 
     @property
@@ -260,14 +314,16 @@ class LrcFile:
 
                 evaluated_metric = comparison["metric_name"]
                 evaluated_metric_name = re.sub("^[0-9]+_", "", evaluated_metric)
-                evaluation_data[evaluated_metric] = getattr(comparison["current_result"], evaluated_metric_name).average
+                evaluation_data[evaluated_metric] = getattr(
+                    comparison["current_result"], evaluated_metric_name
+                ).average
 
         return evaluation_data
 
     @functools.cached_property
     def cpu_evaluation_data(self) -> dict[str, float]:
         """
-            Returns CPU metrics with its values used during evaluation.
+        Returns CPU metrics with its values used during evaluation.
         """
         return self._evaluation_data(CPUMeasurementResults)
 
@@ -285,7 +341,7 @@ class LrcFile:
     @functools.cached_property
     def flow_evaluation_data(self) -> dict[str, float]:
         """
-            Returns flow metrics with its values used during evaluation.
+        Returns flow metrics with its values used during evaluation.
         """
         return self._evaluation_data(FlowMeasurementResults)
 
@@ -296,6 +352,14 @@ class LrcFile:
     @functools.cached_property
     def tc_evaluation_data(self) -> dict[str, float]:
         return self._evaluation_data(TcRunMeasurementResults)
+
+    @property
+    def rdma_results_data(self) -> dict[str, float]:
+        return self._rdma_metrics
+
+    @functools.cached_property
+    def rdma_evaluation_data(self) -> dict[str, float]:
+        return self._evaluation_data(RDMABandwidthMeasurementResults)
 
     @property
     def recipe_params(self) -> Parameters:
@@ -327,11 +391,21 @@ class LrcFile:
 
     @property
     def metrics(self) -> dict[str, float]:
-        return {**self._flow_metrics, **self._cpu_metrics, **self._tc_metrics}
+        return {
+            **self._flow_metrics,
+            **self._cpu_metrics,
+            **self._tc_metrics,
+            **self._rdma_metrics,
+        }
 
     @property
     def evaluation_metrics(self) -> dict[str, float]:
-        return {**self.cpu_evaluation_data, **self.flow_evaluation_data, **self.tc_evaluation_data}
+        return {
+            **self.cpu_evaluation_data,
+            **self.flow_evaluation_data,
+            **self.tc_evaluation_data,
+            **self.rdma_evaluation_data,
+        }
 
     def get_raw_cpu_data(self) -> list[Run]:
         return self._cpu_data
@@ -345,7 +419,6 @@ class LrcFile:
         for run_no in range(len(self._flow_data[0].generator_data)):
             run = Run(label=f"iteration{run_no}")
             for flow_no, flow in enumerate(self._flow_data):
-
                 # skip flows not in whitelist
                 if flow_whitelist is not None and flow_no not in flow_whitelist:
                     continue
@@ -357,7 +430,7 @@ class LrcFile:
                 generator_series = Series(
                     label=f"flow{flow_no}{'(agg)' if flow.is_aggregated else ''}",
                     data=flow.generator_data[run_no],
-                    )
+                )
                 receiver_series = Series(
                     label=f"flow{flow_no}{'(agg)' if flow.is_aggregated else ''}",
                     data=flow.receiver_data[run_no],
