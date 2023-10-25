@@ -133,4 +133,12 @@ class LrcSet:
     @property
     def tc_evaluation_metrics(self) -> dict[str, list[float]]:
         return self._metrics("tc_evaluation_data")
+    
+    @property
+    def rdma_metrics(self) -> dict[str, list[float]]:
+        return self._metrics("rdma_results_data")
+
+    @property
+    def rdma_evaluation_metrics(self) -> dict[str, list[float]]:
+        return self._metrics("rdma_evaluation_data")
 
