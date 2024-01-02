@@ -12,7 +12,7 @@ compare-data-files = "lrc_file.scripts.compare_data_files:main"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-lnst = {git = "https://github.com/LNST-project/lnst.git", branch = "master"}
+lnst = {git = "https://github.com/olichtne/lnst.git", rev = "refactor-measurements-evaluations"}
 
 [tool.poetry.group.dev]
 optional = true

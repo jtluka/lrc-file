@@ -146,9 +146,9 @@ virt = ["libvirt-python"]
 
 [package.source]
 type = "git"
-url = "https://github.com/LNST-project/lnst.git"
-reference = "master"
-resolved_reference = "3e4ad5202a973a6b19caf46f421dbebb42dd6d77"
+url = "https://github.com/olichtne/lnst.git"
+reference = "refactor-measurements-evaluations"
+resolved_reference = "5567455beb5d3d490729efde4b2beb3ad890e04f"
 
 [[package]]
 name = "lxml"
@@ -426,4 +426,4 @@ files = [
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.9"
-content-hash = "fdf14837623029d9f873122715db2aec4cdb7ef5c2c183e2f680655bcd5e6ad6"
+content-hash = "d3ce7508ae3d7bcf60eb4c993c20cceb95f781259ad84e04e080ff2496c645c6"
