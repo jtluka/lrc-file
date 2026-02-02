@@ -149,7 +149,7 @@ virt = ["libvirt-python"]
 type = "git"
 url = "https://github.com/LNST-project/lnst.git"
 reference = "master"
-resolved_reference = "eb30ae8697a5e94f4ace3267287d06deebba4797"
+resolved_reference = "5ff31cd69d471e408c08f0440a2eb6bec49c43fb"
 
 [[package]]
 name = "lxml"
